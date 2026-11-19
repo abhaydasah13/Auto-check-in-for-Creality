@@ -9,7 +9,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.abhaydas.crealityautocheckin"
+        applicationId = "io.github.abhaydasah13.cloudcheckin"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
