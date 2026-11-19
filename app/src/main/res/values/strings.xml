@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Auto Check-In for Creality</string>
+    <string name="notification_channel_name">Check-In Alerts</string>
+    <string name="notification_channel_desc">Daily check-in status notifications and reminders</string>
+    <string name="disclaimer">Unofficial community utility. Not affiliated with or endorsed by Shenzhen Creality 3D Technology Co., Ltd.</string>
+</resources>
