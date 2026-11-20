@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -119,6 +120,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(isWorkManagerScheduled = isEnqueued) }
             }
         }
+
+        // Auto-sync status and streak on app launch if credentials exist
+        viewModelScope.launch {
+            val prefs = preferences.preferencesFlow.first()
+            if (prefs.cookie.isNotBlank()) {
+                performManualCheckIn(isSilent = true)
+            }
+        }
     }
 
     private fun computeBadge(
@@ -145,11 +154,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return CheckInStatusBadge.PENDING
     }
 
-    fun performManualCheckIn() {
+    fun performManualCheckIn(isSilent: Boolean = false) {
         if (_uiState.value.isLoading) return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, userMessage = null) }
+            _uiState.update { it.copy(isLoading = true, userMessage = if (isSilent) it.userMessage else null) }
             val cookie = _uiState.value.cookie
             val deviceId = preferences.getOrCreateDeviceId()
 
@@ -158,7 +167,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 preferences.saveCheckInResult(result)
 
                 val message = if (result.isSuccess) {
-                    "Success: Streak ${result.continueDays} days (+${result.rewardValue} pt)"
+                    "Streak: ${result.continueDays} days • ${if (result.hasDid) "Already checked in today" else "+${result.rewardValue} pt"}"
                 } else {
                     "Notice: ${result.message}"
                 }
@@ -166,7 +175,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        userMessage = message
+                        userMessage = if (isSilent) null else message
                     )
                 }
             } catch (ioe: IOException) {
@@ -180,14 +189,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        userMessage = "Network error: Please check your internet connection."
+                        userMessage = if (isSilent) null else "Network error: Please check your internet connection."
                     )
                 }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        userMessage = "Error: ${e.localizedMessage ?: "Unknown error"}"
+                        userMessage = if (isSilent) null else "Error: ${e.localizedMessage ?: "Unknown error"}"
                     )
                 }
             }
