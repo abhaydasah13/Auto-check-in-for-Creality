@@ -1,5 +1,6 @@
 package com.creality.autocheckin.ui.screens
 
+import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -7,6 +8,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -94,6 +97,7 @@ fun DashboardScreen(
     onCheckInNow: () -> Unit,
     onNavigateToWebLogin: () -> Unit,
     onToggleAutoCheckIn: (Boolean) -> Unit,
+    onUpdateScheduleTime: (Int, Int) -> Unit = { _, _ -> },
     onSaveCookie: (String) -> Unit,
     onClearSession: () -> Unit,
     onClearUserMessage: () -> Unit
@@ -170,7 +174,11 @@ fun DashboardScreen(
             AutomationToggleCard(
                 isEnabled = state.isAutoCheckInEnabled,
                 isScheduled = state.isWorkManagerScheduled,
-                onToggle = onToggleAutoCheckIn
+                formattedTime = state.formattedScheduleTime,
+                currentHour = state.scheduleHour,
+                currentMinute = state.scheduleMinute,
+                onToggle = onToggleAutoCheckIn,
+                onUpdateTime = onUpdateScheduleTime
             )
 
             // 3. Primary Action Buttons
@@ -405,57 +413,129 @@ private fun StatusBadgeView(badge: CheckInStatusBadge) {
 private fun AutomationToggleCard(
     isEnabled: Boolean,
     isScheduled: Boolean,
-    onToggle: (Boolean) -> Unit
+    formattedTime: String,
+    currentHour: Int,
+    currentMinute: Int,
+    onToggle: (Boolean) -> Unit,
+    onUpdateTime: (Int, Int) -> Unit
 ) {
+    val context = LocalContext.current
+    val timePickerDialog = remember(currentHour, currentMinute) {
+        TimePickerDialog(
+            context,
+            { _, hourOfDay, minute ->
+                onUpdateTime(hourOfDay, minute)
+            },
+            currentHour,
+            currentMinute,
+            false // 12-hour view with AM/PM
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = DarkSurface)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(18.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Daily Auto Check-In",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (isScheduled && isEnabled) CrealityGreen else TextMuted)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Daily Auto Check-In",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (isScheduled && isEnabled) CrealityGreen else TextMuted)
+                        text = if (isEnabled) {
+                            "Active • Runs daily at $formattedTime"
+                        } else {
+                            "Disabled • Toggle ON for autonomous daily runs"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isEnabled) CrealityLightGreen else TextSecondary
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (isEnabled) {
-                        "Active • WorkManager runs every 24h on connected network"
-                    } else {
-                        "Disabled • Toggle ON for autonomous daily runs"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isEnabled) CrealityLightGreen else TextSecondary
+
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = onToggle,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = CrealityGreen,
+                        checkedTrackColor = CrealityDarkGreen.copy(alpha = 0.5f),
+                        uncheckedThumbColor = TextMuted,
+                        uncheckedTrackColor = DarkSurfaceVariant
+                    )
                 )
             }
 
-            Switch(
-                checked = isEnabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = CrealityGreen,
-                    checkedTrackColor = CrealityDarkGreen.copy(alpha = 0.5f),
-                    uncheckedThumbColor = TextMuted,
-                    uncheckedTrackColor = DarkSurfaceVariant
-                )
-            )
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Time Selector Card
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DarkSurfaceVariant.copy(alpha = 0.6f))
+                    .clickable { timePickerDialog.show() }
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = "Schedule Time",
+                        tint = AccentBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Target Check-In Time",
+                            fontSize = 11.sp,
+                            color = TextMuted
+                        )
+                        Text(
+                            text = formattedTime,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isEnabled) CrealityGreen else TextPrimary
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AccentBlue.copy(alpha = 0.15f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = "Change",
+                        color = AccentBlue,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         }
     }
 }

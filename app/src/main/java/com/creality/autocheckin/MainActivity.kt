@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
                                     onCheckInNow = { viewModel.performManualCheckIn() },
                                     onNavigateToWebLogin = { currentScreen = AppScreen.WEB_LOGIN },
                                     onToggleAutoCheckIn = { viewModel.toggleAutoCheckIn(it) },
+                                    onUpdateScheduleTime = { h, m -> viewModel.updateScheduleTime(h, m) },
                                     onSaveCookie = { viewModel.saveManualCookie(it) },
                                     onClearSession = { viewModel.clearSession() },
                                     onClearUserMessage = { viewModel.clearUserMessage() }

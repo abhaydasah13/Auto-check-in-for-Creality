@@ -1,6 +1,7 @@
 package com.creality.autocheckin
 
 import com.creality.autocheckin.data.CrealityApiRepository
+import com.creality.autocheckin.worker.CheckInScheduler
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -49,5 +50,12 @@ class CrealityApiRepositoryTest {
 
         assertFalse(details.isValid)
         assertEquals("fallback-id", details.deviceId)
+    }
+
+    @Test
+    fun testCalculateInitialDelayMillis() {
+        val delay = CheckInScheduler.calculateInitialDelayMillis(6, 0)
+        assertTrue(delay > 0)
+        assertTrue(delay <= 24 * 60 * 60 * 1000L)
     }
 }

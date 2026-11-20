@@ -18,9 +18,13 @@ class CrealityApplication : Application() {
         // Ensure scheduler state matches user preference on app boot
         CoroutineScope(Dispatchers.IO).launch {
             val preferences = CrealityPreferences(this@CrealityApplication)
-            val isEnabled = preferences.preferencesFlow.first().isAutoCheckInEnabled
-            if (isEnabled) {
-                CheckInScheduler.scheduleDailyCheckIn(this@CrealityApplication)
+            val prefs = preferences.preferencesFlow.first()
+            if (prefs.isAutoCheckInEnabled) {
+                CheckInScheduler.scheduleDailyCheckIn(
+                    context = this@CrealityApplication,
+                    targetHour = prefs.scheduleHour,
+                    targetMinute = prefs.scheduleMinute
+                )
             }
         }
     }

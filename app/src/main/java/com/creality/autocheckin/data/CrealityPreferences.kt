@@ -30,7 +30,9 @@ data class CrealityPreferencesState(
     val lastStatusMsg: String = "No check-in performed yet",
     val hasCheckedInToday: Boolean = false,
     val rewardValue: Int = 0,
-    val deviceId: String = ""
+    val deviceId: String = "",
+    val scheduleHour: Int = 6,
+    val scheduleMinute: Int = 0
 )
 
 class CrealityPreferences(private val context: Context) {
@@ -46,6 +48,8 @@ class CrealityPreferences(private val context: Context) {
         val KEY_TODAY_CHECKED_IN = booleanPreferencesKey("creality_today_checked_in")
         val KEY_REWARD_VALUE = intPreferencesKey("creality_reward_value")
         val KEY_DEVICE_ID = stringPreferencesKey("creality_device_id")
+        val KEY_SCHEDULE_HOUR = intPreferencesKey("creality_schedule_hour")
+        val KEY_SCHEDULE_MINUTE = intPreferencesKey("creality_schedule_minute")
     }
 
     val preferencesFlow: Flow<CrealityPreferencesState> = context.dataStore.data
@@ -67,7 +71,9 @@ class CrealityPreferences(private val context: Context) {
                 lastStatusMsg = preferences[KEY_LAST_STATUS_MSG] ?: "No check-in performed yet",
                 hasCheckedInToday = preferences[KEY_TODAY_CHECKED_IN] ?: false,
                 rewardValue = preferences[KEY_REWARD_VALUE] ?: 0,
-                deviceId = preferences[KEY_DEVICE_ID] ?: ""
+                deviceId = preferences[KEY_DEVICE_ID] ?: "",
+                scheduleHour = preferences[KEY_SCHEDULE_HOUR] ?: 6,
+                scheduleMinute = preferences[KEY_SCHEDULE_MINUTE] ?: 0
             )
         }
 
@@ -80,6 +86,13 @@ class CrealityPreferences(private val context: Context) {
     suspend fun saveAutoCheckInEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[KEY_AUTO_ENABLED] = enabled
+        }
+    }
+
+    suspend fun saveScheduleTime(hour: Int, minute: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_SCHEDULE_HOUR] = hour
+            preferences[KEY_SCHEDULE_MINUTE] = minute
         }
     }
 

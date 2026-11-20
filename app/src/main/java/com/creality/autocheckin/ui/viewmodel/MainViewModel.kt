@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -43,13 +44,25 @@ data class DashboardUiState(
     val extractedToken: String = "",
     val extractedUserId: String = "",
     val isWorkManagerScheduled: Boolean = false,
-    val userMessage: String? = null
+    val userMessage: String? = null,
+    val scheduleHour: Int = 6,
+    val scheduleMinute: Int = 0
 ) {
     val formattedLastRun: String
         get() {
             if (lastRunTimestamp <= 0L) return "Never"
             val sdf = SimpleDateFormat("MMM dd, yyyy • HH:mm:ss", Locale.getDefault())
             return sdf.format(Date(lastRunTimestamp))
+        }
+
+    val formattedScheduleTime: String
+        get() {
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, scheduleHour)
+                set(Calendar.MINUTE, scheduleMinute)
+            }
+            val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
+            return sdf.format(cal.time)
         }
 }
 
@@ -89,7 +102,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         tokenFound = cookieDetails.token.isNotBlank(),
                         userIdFound = cookieDetails.userId.isNotBlank(),
                         extractedToken = cookieDetails.token,
-                        extractedUserId = cookieDetails.userId
+                        extractedUserId = cookieDetails.userId,
+                        scheduleHour = prefs.scheduleHour,
+                        scheduleMinute = prefs.scheduleMinute
                     )
                 }
             }
@@ -183,12 +198,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             preferences.saveAutoCheckInEnabled(enable)
             if (enable) {
-                CheckInScheduler.scheduleDailyCheckIn(getApplication())
-                _uiState.update { it.copy(userMessage = "Daily 24-hour check-in automation enabled.") }
+                CheckInScheduler.scheduleDailyCheckIn(
+                    context = getApplication(),
+                    targetHour = _uiState.value.scheduleHour,
+                    targetMinute = _uiState.value.scheduleMinute
+                )
+                _uiState.update { it.copy(userMessage = "Daily auto check-in scheduled for ${_uiState.value.formattedScheduleTime}") }
             } else {
                 CheckInScheduler.cancelDailyCheckIn(getApplication())
                 _uiState.update { it.copy(userMessage = "Daily check-in automation disabled.") }
             }
+        }
+    }
+
+    fun updateScheduleTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            preferences.saveScheduleTime(hour, minute)
+            if (_uiState.value.isAutoCheckInEnabled) {
+                CheckInScheduler.scheduleDailyCheckIn(
+                    context = getApplication(),
+                    targetHour = hour,
+                    targetMinute = minute
+                )
+            }
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, minute)
+            }
+            val timeStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(cal.time)
+            _uiState.update { it.copy(userMessage = "Check-in time updated to $timeStr") }
         }
     }
 
